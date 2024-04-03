@@ -1,0 +1,781 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>postgres: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">rent-car/storage/postgres/car.go (56.9%)</option>
+				
+				<option value="file1">rent-car/storage/postgres/customer.go (85.2%)</option>
+				
+				<option value="file2">rent-car/storage/postgres/order.go (85.7%)</option>
+				
+				<option value="file3">rent-car/storage/postgres/postgres.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package postgres
+
+import (
+        "context"
+        "database/sql"
+        "fmt"
+        "rent-car/api/models"
+        "rent-car/config"
+        "rent-car/pkg"
+
+        "github.com/google/uuid"
+        "github.com/jackc/pgx/v5/pgxpool"
+)
+
+type carRepo struct {
+        db *pgxpool.Pool        
+}
+
+func NewCar(db *pgxpool.Pool) carRepo <span class="cov8" title="1">{
+        return carRepo{
+                db: db,
+        }
+}</span>
+
+func (c *carRepo) Create(ctx context.Context,car models.Car) (string, error) <span class="cov8" title="1">{
+
+        id := uuid.New()
+
+        query := ` INSERT INTO cars (
+                id,
+                name,
+                brand,
+                model,
+                hourse_power,
+                colour,
+                engine_cap)
+                VALUES($1,$2,$3,$4,$5,$6,$7) 
+        `
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+
+        _,err := c.db.Exec(ctx,query,
+                id.String(),
+                car.Name, car.Brand,
+                car.Model, car.HoursePower,
+                car.Colour, car.EngineCap)
+
+        if err != nil </span><span class="cov0" title="0">{
+                fmt.Println(err.Error())
+                panic(err)</span>
+        }
+
+        <span class="cov8" title="1">return id.String(), nil</span>
+}
+
+func (c *carRepo) Update(ctx context.Context,car models.Car) (string, error) <span class="cov8" title="1">{
+
+        query := ` UPDATE cars set
+                        name=$1,
+                        brand=$2,
+                        model=$3,
+                        hourse_power=$4,
+                        colour=$5,
+                        engine_cap=$6,
+                        updated_at=CURRENT_TIMESTAMP
+                WHERE id = $7 AND deleted_at = 0
+        `
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+
+        _, err := c.db.Exec(ctx,query,
+                car.Name, car.Brand,
+                car.Model, car.HoursePower,
+                car.Colour, car.EngineCap, car.Id)
+
+        if err != nil </span><span class="cov0" title="0">{
+                fmt.Println(err.Error())
+                panic(err)</span>
+        }
+
+        <span class="cov8" title="1">return car.Id, nil</span>
+}
+
+func (c *carRepo) GetAll(ctx context.Context,req models.GetAllCarsRequest) (models.GetAllCarsResponse, error) <span class="cov8" title="1">{
+        var (
+                resp   = models.GetAllCarsResponse{}
+                filter = ""
+        )
+        offset := (req.Page - 1) * req.Limit
+
+        if req.Search != "" </span><span class="cov8" title="1">{
+                filter += fmt.Sprintf(` and name ILIKE  '%%%v%%' `, req.Search)
+        }</span>
+
+        <span class="cov8" title="1">filter += fmt.Sprintf("OFFSET %v LIMIT %v", offset, req.Limit)
+        fmt.Println("filter:", filter)
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+
+        rows, err := c.db.Query(ctx,`select 
+                                count(id) OVER(),
+                                id, 
+                                name,
+                                brand,
+                                model,
+                                hourse_power,
+                                colour,
+                                engine_cap,
+                                --created_at::date,
+                                updated_at,
+                                year
+          FROM cars WHERE deleted_at = 0 ` + filter + ``)
+        if err != nil </span><span class="cov0" title="0">{
+                return resp, err
+        }</span>
+        <span class="cov8" title="1">for rows.Next() </span><span class="cov8" title="1">{
+                var (
+                        car      = models.Car{}
+                        updateAt     sql.NullString
+                )
+
+                if err := rows.Scan(
+                        &amp;resp.Count,
+                        &amp;car.Id,
+                        &amp;car.Name,
+                        &amp;car.Brand,
+                        &amp;car.Model,
+                        // &amp;car.Year,
+                        &amp;car.HoursePower,
+                        &amp;car.Colour,
+                        &amp;car.EngineCap,
+                        // &amp;car.CreatedAt,
+                        &amp;updateAt,
+                        &amp;car.Year); err != nil </span><span class="cov0" title="0">{
+                        return resp, err
+                }</span>
+         
+                <span class="cov8" title="1">car.UpdatedAt = pkg.NullStringToString(updateAt)
+                resp.Cars = append(resp.Cars, car)</span>
+        }
+        <span class="cov8" title="1">return resp, nil</span>
+}
+
+func (c *carRepo) GetAvaibleCars(ctx context.Context,req models.GetAllCarsRequest) (models.GetAllCarsResponse, error) <span class="cov0" title="0">{
+        var (
+                resp   = models.GetAllCarsResponse{}
+                filter = ""
+        )
+        offset := (req.Page - 1) * req.Limit
+
+        if req.Search != "" </span><span class="cov0" title="0">{
+                filter += fmt.Sprintf(` and name ILIKE  '%%%v%%' `, req.Search)
+        }</span>
+
+        <span class="cov0" title="0">filter += fmt.Sprintf(" OFFSET %v LIMIT %v", offset, req.Limit)
+        fmt.Println("filter:", filter)
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+        rows,err := c.db.Query(ctx,`
+        SELECT name,model 
+        FROM cars
+        WHERE id NOT IN (SELECT car_id FROM orders WHERE car_id IS NOT NULL)`+ filter + ``)
+        if err != nil </span><span class="cov0" title="0">{
+                return resp,err
+        }</span>
+        <span class="cov0" title="0">for rows.Next() </span><span class="cov0" title="0">{
+             var (
+                        car = models.Car{}
+                 )
+
+                if err := rows.Scan(
+
+                        &amp;car.Name,
+                        &amp;car.Model,);err != nil</span><span class="cov0" title="0">{
+                                return resp,err
+                        }</span>
+
+                <span class="cov0" title="0">resp.Cars = append(resp.Cars, car)</span>        
+        }
+        <span class="cov0" title="0">if err = rows.Err();err != nil </span><span class="cov0" title="0">{
+                return resp,err
+           }</span>
+           <span class="cov0" title="0">countQuery := `SELECT COUNT(*) AS count_of_available_cars
+           FROM cars
+           WHERE id NOT IN (SELECT car_id FROM orders WHERE car_id IS NOT NULL)`
+
+           err = c.db.QueryRow(ctx,countQuery).Scan(&amp;resp.Count)
+                 if err != nil</span><span class="cov0" title="0">{
+                        return resp,err
+                 }</span>
+           <span class="cov0" title="0">return resp,nil</span>
+}
+
+func (c *carRepo) GetByID(ctx context.Context,id string) (models.Car, error) <span class="cov8" title="1">{
+        car := models.Car{}
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+
+        if err := c.db.QueryRow(ctx,`select id,name,brand,model,hourse_power,colour,engine_cap from cars where id = $1`, id).Scan(
+                &amp;car.Id,
+                &amp;car.Name,
+                &amp;car.Brand,
+                &amp;car.Model,
+                &amp;car.HoursePower,
+                &amp;car.Colour,
+                &amp;car.EngineCap,
+        ); err != nil </span><span class="cov0" title="0">{
+                return car, err
+        }</span>
+        <span class="cov8" title="1">return car, nil</span>
+}
+
+func (c *carRepo) Delete(ctx context.Context,id string) error <span class="cov8" title="1">{
+
+        query := `delete from cars WHERE id = $1`
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+
+        _, err := c.db.Exec(ctx,query, id)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}</pre>
+		
+		<pre class="file" id="file1" style="display: none">package postgres
+
+import (
+        "context"
+        // "database/sql"
+        "fmt"
+        "rent-car/api/models"
+        "rent-car/config"
+
+        // "rent-car/pkg"
+
+        "github.com/google/uuid"
+        "github.com/jackc/pgx/v5/pgxpool"
+)
+
+type customerRepo struct {
+        db *pgxpool.Pool
+}
+
+
+func NewCustomer(db *pgxpool.Pool) customerRepo <span class="cov8" title="1">{
+        return customerRepo{
+                db: db,
+        }
+}</span>
+
+func (c *customerRepo) Create(ctx context.Context,customer models.Customer) (string, error) <span class="cov8" title="1">{
+        id := uuid.New()
+
+        query := `insert into customers(
+        id,
+        first_name,
+        last_name,
+        gmail,
+        phone,
+        is_blocked) 
+    values($1,$2,$3,$4,$5,$6)`
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+        _, err := c.db.Exec(ctx,query, id.String(), customer.FirstName, customer.LastName, customer.Gmail, customer.Phone, customer.Is_Blocked)
+        if err != nil </span><span class="cov0" title="0">{
+                return "error:", err
+        }</span>
+        <span class="cov8" title="1">return id.String(), nil</span>
+}
+
+func (c *customerRepo) UpdateCustomer(ctx context.Context,customer models.Customer) (string, error) <span class="cov8" title="1">{
+        query := `update customers set 
+        first_name=$1,
+        last_name=$2,
+        gmail=$3,
+        phone=$4,
+        is_blocked=$5,
+        updated_at=CURRENT_TIMESTAMP
+        WHERE id = $6 AND deleted_at = 0
+        `
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+        _, err := c.db.Exec(ctx,query,
+                customer.FirstName,
+                customer.LastName,
+                customer.Gmail,
+                customer.Phone,
+                customer.Is_Blocked,
+                customer.Id)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", err
+        }</span>
+        <span class="cov8" title="1">return customer.Id, nil</span>
+}
+// --cu.created_at,
+// --cu.updated_at,
+
+func (c *customerRepo) GetAllCustomer(ctx context.Context,req models.GetAllCustomersRequest) (models.GetAllCustomersResponse, error) <span class="cov8" title="1">{
+        var (
+                resp   = models.GetAllCustomersResponse{}
+                filter = ""
+        )
+        offset := (req.Page - 1) * req.Limit
+        if req.Search != "" </span><span class="cov8" title="1">{
+                filter += fmt.Sprintf(`and first_name ILIKE '%%%v%%'`, req.Search)
+        }</span>
+
+        <span class="cov8" title="1">filter += fmt.Sprintf(" OFFSET %v LIMIT %v", offset, req.Limit)
+        fmt.Println("filter:", filter)
+
+        query:=`Select 
+        cu.id as customer_id,
+        cu.first_name as customer_first_name,
+        cu.last_name as customer_last_name,
+        cu.gmail as customer_gmail,
+        cu.phone as customer_phone,
+        o.id,
+        --o.from_date,
+        --o.to_date,
+        o.status,
+        o.paid,
+        o.amount
+        From customers cu 
+        JOIN orders o ON  cu.id = o.customer_id
+        JOIN  cars ca ON ca.id = o.car_id
+        `
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+
+        rows, err := c.db.Query(ctx,query + filter + ``)
+        if err != nil </span><span class="cov0" title="0">{
+                return resp, err
+        }</span>
+     <span class="cov8" title="1">defer rows.Close()
+
+        for rows.Next() </span><span class="cov8" title="1">{
+                var (
+                        customer = models.GetAllCustomer{
+                                Order: models.Order{},
+                        }
+                        // updateAt sql.NullString
+                )
+                if err := rows.Scan(
+                        &amp;customer.Id,
+                        &amp;customer.FirstName,
+                        &amp;customer.LastName,
+                        &amp;customer.Gmail,
+                        &amp;customer.Phone,
+                        // &amp;customer.CreatedAt,
+                        // &amp;updateAt,
+                        &amp;customer.Order.Id,       
+                        // &amp;customer.Order.FromDate,       
+                        // &amp;customer.Order.ToDate,       
+                        &amp;customer.Order.Status,       
+                        &amp;customer.Order.Paid,       
+                        &amp;customer.Order.Amount);err != nil </span><span class="cov0" title="0">{
+                        return resp, err
+                }</span>
+                // customer.UpdatedAt = pkg.NullStringToString(updateAt)
+                <span class="cov8" title="1">resp.Customers = append(resp.Customers, customer)</span>
+        }
+        <span class="cov8" title="1">if err = rows.Err();err != nil </span><span class="cov0" title="0">{
+                return resp,err
+        }</span>
+        <span class="cov8" title="1">countQuery := `Select count(*) from customers`
+        err = c.db.QueryRow(ctx,countQuery).Scan(&amp;resp.Count)
+        if err != nil </span><span class="cov0" title="0">{
+                return resp,err
+        }</span>
+        <span class="cov8" title="1">return resp, nil</span>
+}
+
+func (c *customerRepo) GetByID(ctx context.Context,id string) (models.Customer, error) <span class="cov8" title="1">{
+        customer := models.Customer{}
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+        if err := c.db.QueryRow(ctx,`select id,first_name,last_name,gmail,phone,is_blocked from customers where id = $1`, id).Scan(
+                &amp;customer.Id,
+                &amp;customer.FirstName,
+                &amp;customer.LastName,
+                &amp;customer.Gmail,
+                &amp;customer.Phone,
+                &amp;customer.Is_Blocked); err != nil </span><span class="cov8" title="1">{
+                return models.Customer{}, err
+        }</span>
+        <span class="cov0" title="0">return customer, nil</span>
+}
+
+func (c *customerRepo) Delete(ctx context.Context,id string) error <span class="cov8" title="1">{
+        queary := `delete from customers where id = $1`
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+        _, err := c.db.Exec(ctx,queary, id)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package postgres
+
+import (
+        "context"
+        "database/sql"
+        "fmt"
+        "rent-car/api/models"
+        "rent-car/config"
+        "rent-car/pkg"
+
+        "github.com/google/uuid"
+        "github.com/jackc/pgx/v5/pgxpool"
+)
+
+type orderRepo struct {
+        db *pgxpool.Pool
+}
+
+func NewOrder(db *pgxpool.Pool) orderRepo <span class="cov8" title="1">{
+        return orderRepo{
+                db: db,
+        }
+}</span>
+
+func (o *orderRepo) Create(ctx context.Context, or models.CreateOrder) (string, error) <span class="cov8" title="1">{
+        id := uuid.New()
+
+        query := `insert into orders(
+                id,
+                car_id,
+                customer_id,
+                from_date,
+                to_date,
+                status,
+                paid,
+                amount
+        ) values($1,$2,$3,$4,$5,$6,$7,$8)`
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+        _, err := o.db.Exec(ctx, query, id.String(), or.CarId, or.CustomerId, or.FromDate, or.ToDate, or.Status, or.Paid, or.Amount)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", err
+        }</span>
+        <span class="cov8" title="1">return id.String(), nil</span>
+}
+
+func (o *orderRepo) Update(ctx context.Context, or models.UpdateOrder) (string, error) <span class="cov8" title="1">{
+        query := `update orders set
+           from_date=$1,
+           to_date=$2,
+           status=$3,
+           paid=$4,
+           amount=$5,
+       updated_at=CURRENT_TIMESTAMP
+           WHERE id=$6
+        `
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+        _, err := o.db.Exec(ctx, query, or.FromDate, or.ToDate, or.Status, or.Paid, or.Amount, or.Id)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", err
+        }</span>
+        <span class="cov8" title="1">return or.Id, nil</span>
+}
+
+func (o *orderRepo) GetAll(ctx context.Context, req models.GetAllOrdersRequest) (models.GetAllOrdersResponse, error) <span class="cov8" title="1">{
+        var (
+                resp   = models.GetAllOrdersResponse{}
+                filter = ""
+        )
+        offset := (req.Page - 1) * req.Limit
+        if req.Search != "" </span><span class="cov8" title="1">{
+                filter += fmt.Sprintf(`and  status ILIKE '%%%v%%'`, req.Search)
+        }</span>
+        <span class="cov8" title="1">filter += fmt.Sprintf(" OFFSET %v LIMIT %v", offset, req.Limit)
+        fmt.Println("filter:", filter)
+
+        query := `Select 
+        o.id,
+        --o.from_date,
+        --o.to_date,
+        o.status,
+        o.paid,
+        o.amount,
+        --o.created_at,
+        --o.updated_at,
+        c.name as car_name,
+        c.brand as car_brand,
+        c.engine_cap as car_engine_cap,
+        cu.id as customer_id,
+        cu.first_name as customer_first_name,
+        cu.last_name as customer_last_name,
+        cu.gmail as customer_gmail,
+        cu.phone as customer_phone
+        From orders o JOIN cars c ON o.car_id = c.id
+        JOIN customers cu ON o.customer_id = cu.id         `
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+        rows, err := o.db.Query(ctx, query+filter+``)
+        if err != nil </span><span class="cov0" title="0">{
+                return resp, err
+        }</span>
+        <span class="cov8" title="1">defer rows.Close()
+
+        for rows.Next() </span><span class="cov8" title="1">{
+                var (
+                        order = models.GetOrder{
+                                Car:      models.Car{},
+                                Customer: models.Customer{},
+                        }
+                        updateAt sql.NullString
+                )
+
+                err := rows.Scan(
+                        &amp;order.Id,
+                        // &amp;order.FromDate,
+                        // &amp;order.ToDate,
+                        &amp;order.Status,
+                        &amp;order.Paid,
+                        &amp;order.Amount,
+                        // &amp;order.CreatedAt,
+                        // &amp;updateAt,
+                        &amp;order.Car.Name,
+                        &amp;order.Car.Brand,
+                        &amp;order.Car.EngineCap,
+                        &amp;order.Customer.Id,
+                        &amp;order.Customer.FirstName,
+                        &amp;order.Customer.LastName,
+                        &amp;order.Customer.Gmail, &amp;order.Customer.Phone)
+                if err != nil </span><span class="cov0" title="0">{
+                        return resp, err
+                }</span>
+                <span class="cov8" title="1">order.UpdatedAt = pkg.NullStringToString(updateAt)
+                resp.Orders = append(resp.Orders, order)</span>
+        }
+        <span class="cov8" title="1">if err = rows.Err(); err != nil </span><span class="cov0" title="0">{
+                return resp, err
+        }</span>
+        <span class="cov8" title="1">countQuery := `SELECT COUNT(*) FROM orders`
+
+        err = o.db.QueryRow(ctx, countQuery).Scan(&amp;resp.Count)
+        if err != nil </span><span class="cov0" title="0">{
+                return resp, err
+        }</span>
+        <span class="cov8" title="1">return resp, nil</span>
+}
+
+func (o *orderRepo) GetByID(ctx context.Context, id string) (models.OrderAll, error) <span class="cov8" title="1">{
+        order := models.OrderAll{}
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+
+        if err := o.db.QueryRow(ctx,`Select 
+                 o.id as order_id,
+                o.car_id,
+                o.customer_id,
+                 --o.from_date,
+                 --o.to_date,
+                 o.status,
+                 o.paid
+                 --o.created_at,
+                 --o.updated_at 
+                from orders o
+                 where id = $1`, id).Scan(
+                &amp;order.Id,
+                &amp;order.CarId,
+                &amp;order.CustomerId,
+                // &amp;order.FromDate,
+                // &amp;order.ToDate,
+                &amp;order.Status,
+                &amp;order.Paid,
+        // &amp;order.CreatedAt,
+        //&amp;order.UpdatedAt
+        ); err != nil </span><span class="cov0" title="0">{
+                return models.OrderAll{}, err
+        }</span>
+        <span class="cov8" title="1">return order, nil</span>
+}
+
+
+func (o *orderRepo) Delete(ctx context.Context, id string) error <span class="cov8" title="1">{
+    query := `DELETE FROM orders WHERE id = $1`
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+    _, err := o.db.Exec(ctx, query, id)
+    if err != nil </span><span class="cov0" title="0">{
+        return err
+    }</span>
+    <span class="cov8" title="1">return nil</span>
+}
+
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package postgres
+
+import (
+        "context"
+        "fmt"
+        "rent-car/config"
+        "rent-car/storage"
+        "time"
+        
+        "github.com/jackc/pgx/v5/pgxpool"
+        _ "github.com/lib/pq"
+)
+
+type Store struct {
+        Pool *pgxpool.Pool
+}
+
+
+func New(ctx context.Context, cfg config.Config) (storage.IStorage, error) <span class="cov0" title="0">{
+        url := fmt.Sprintf(`host=%s port=%v user=%s password=%s database=%s sslmode=disable`,
+                cfg.PostgresHost, cfg.PostgresPort, cfg.PostgresUser, cfg.PostgresPassword, cfg.PostgresDatabase)
+
+        pgPoolConfig, err := pgxpool.ParseConfig(url)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">pgPoolConfig.MaxConns = 100
+        pgPoolConfig.MaxConnLifetime = time.Hour
+
+        ctx,cancel:= context.WithTimeout(ctx,config.TimewithContex)
+        defer cancel()
+        
+        newPool, err := pgxpool.NewWithConfig(ctx, pgPoolConfig)
+        if err != nil </span><span class="cov0" title="0">{
+                fmt.Println("error while connecting to db", err.Error())
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">return Store{
+                Pool: newPool,
+        }, nil</span>
+
+}
+func (s Store) CloseDB() <span class="cov0" title="0">{
+        s.Pool.Close()
+}</span>
+
+func (s Store) Car() storage.ICarStorage <span class="cov0" title="0">{
+        newCar := NewCar(s.Pool)
+
+        return &amp;newCar
+}</span>
+
+func (s Store) Customer() storage.ICustomerStorage <span class="cov0" title="0">{
+        newCustomer := NewCustomer(s.Pool)
+
+        return &amp;newCustomer
+}</span>
+func (s Store) Order() storage.IOrderStorage <span class="cov0" title="0">{
+        newOrder := NewOrder(s.Pool)
+
+        return &amp;newOrder
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
